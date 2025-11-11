@@ -1,0 +1,137 @@
+(.env) marcolomele@Marcos-MacBook-Pro scripts % python experiment.py --config config_names.json
+
+============================================================
+HPYP EXPERIMENT
+============================================================
+
+STEP 1: Load and prepare data
+Loading data from ../data/namesbystate/namesbystate_agg.csv...
+Filtered to ['FL', 'NY', 'CA', 'TX']: 1,875 records
+Capping: max 1,000 per restaurant
+  CA: sampling 1,000 from 2,000
+  TX: sampling 1,000 from 2,000
+  NY: sampling 1,000 from 2,000
+  FL: sampling 1,000 from 2,000
+
+Loaded 1504 unique (restaurant, dish) pairs
+Restaurants: ['CA', 'FL', 'NY', 'TX']
+Total customers: 4,000
+
+Splitting: train_ratio=1.0
+Fit: 1504 pairs, 4,000 customers
+Test: 0 pairs, 0 customers
+
+Data summary per restaurant:
+  Restaurant 0 (FL): 1,000 customers, 316 dishes
+  Restaurant 1 (NY): 1,000 customers, 308 dishes
+  Restaurant 2 (CA): 1,000 customers, 437 dishes
+  Restaurant 3 (TX): 1,000 customers, 443 dishes
+Total unique dishes: 648
+
+STEP 2: Fit models
+
+============================================================
+FITTING INDEPENDENT MODELS (threads=8)
+============================================================
+Gibbs sampling: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████▊| 39915/40000 [19:36<00:02, 33.68iter/s]✓ Completed CA
+Gibbs sampling: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████▊| 39950/40000 [19:37<00:01, 34.54iter/s]✓ Completed TX
+Gibbs sampling: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████▉| 39977/40000 [19:37<00:00, 25.10iter/s]✓ Completed FL
+Gibbs sampling: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████▉| 39997/40000 [19:38<00:00, 38.94iter/s]✓ Completed NY
+Gibbs sampling: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████| 40000/40000 [19:38<00:00, 33.94iter/s]
+
+✓ All independent models fitted successfully!
+
+============================================================
+FITTING DEPENDENT MODEL
+============================================================
+Fitting model with 4 groups sharing base distribution...
+Initializing model with observed data...
+Gibbs sampling: 100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 10000/10000 [16:35<00:00, 10.05it/s]
+
+Fitting complete. Posterior samples: 5000
+Posterior mean parameters:
+  θ_0 = 1047.14
+  θ_j = 969.93
+  δ_0 = 0.0562
+  δ_j = 0.1185
+
+✓ Dependent model fitted successfully!
+✓ Checkpoint: models
+
+STEP 3: Generate predictions
+
+  Running independent predictions...
+
+============================================================
+INDEPENDENT PREDICTION (threads=8)
+============================================================
+
+Predicting for group 0 (FL)...
+Group 0: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 5/5 [13:27<00:00, 161.45s/it]
+
+Predicting for group 1 (NY)...
+Group 1: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 5/5 [13:35<00:00, 163.06s/it]
+
+Predicting for group 2 (CA)...
+Group 2:  40%|██████████████████████████████████████████████████████████████████▊                                                                                                    | 2/5 [02:01<03:19, 66.54s/it]Group 2: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 5/5 [15:42<00:00, 188.48s/it]
+
+Predicting for group 3 (TX)...
+Group 3: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 5/5 [13:51<00:00, 166.28s/it]
+
+✓ Independent predictions complete!
+✓ Checkpoint: predictions
+  ✓ Independent predictions saved to checkpoint
+
+  Running dependent predictions...
+
+============================================================
+DEPENDENT PREDICTION (threads=8)
+============================================================
+
+Running 10000 iterations for each m value...
+Prediction: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 5/5 [59:12<00:00, 710.41s/it]
+
+✓ Dependent predictions complete!
+✓ Checkpoint: predictions
+  ✓ Dependent predictions saved to checkpoint
+
+STEP 4: Compute statistics
+✓ Checkpoint: statistics
+
+STEP 5: Generate output
+✓ Independent predictions table saved to ./results_namesbystate_final/tables/independent_predictions.csv
+✓ Dependent predictions table saved to ./results_namesbystate_final/tables/dependent_predictions.csv
+✓ Parameter estimates table saved to ./results_namesbystate_final/tables/parameter_estimates.csv
+✓ Comparison table saved to ./results_namesbystate_final/tables/model_comparison.csv
+✓ Linearity check saved to ./results_namesbystate_final/diagnostics/linearity_independent.txt
+✓ Linearity check saved to ./results_namesbystate_final/diagnostics/linearity_dependent.txt
+
+============================================================
+RESULTS SUMMARY (m = 1000)
+============================================================
+
+Independent Model:
+----------------------------------------
+  FL: L̂^0 = 337.83, HPD = (300, 377)
+  NY: L̂^0 = 274.96, HPD = (239, 312)
+  CA: L̂^0 = 386.61, HPD = (348, 426)
+  TX: L̂^0 = 399.63, HPD = (361, 439)
+
+Dependent Model (Borrowing Strength):
+----------------------------------------
+  FL: L̂^0 = 189.19, HPD = (159, 221)
+  NY: L̂^0 = 196.11, HPD = (166, 227)
+  CA: L̂^0 = 162.35, HPD = (134, 192)
+  TX: L̂^0 = 165.44, HPD = (137, 195)
+
+Borrowing Strength Effect:
+----------------------------------------
+  FL: HPD width reduction = 19.5%
+  NY: HPD width reduction = 16.4%
+  CA: HPD width reduction = 25.7%
+  TX: HPD width reduction = 25.6%
+============================================================
+
+✓ Complete! Results in ./results_namesbystate_final
+
+✓ Success!

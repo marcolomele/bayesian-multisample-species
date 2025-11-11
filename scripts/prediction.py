@@ -1,28 +1,95 @@
 """
 Prediction algorithms for species sampling using HPYP.
-Implements both independent and dependent prediction strategies.
 """
 
 import numpy as np
-from typing import Dict, List, Tuple, Any, Set
-from collections import defaultdict
+from typing import Dict, List, Tuple, Any
 from tqdm import tqdm
 from pitmanyor import HierarchicalPitmanYorProcess
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 import copy
 
 
-def predict_new_species_independent(
+# Module-level helper functions for ProcessPoolExecutor (must be picklable)
+def _predict_iteration_independent(args):
+    """Helper function for parallel independent prediction."""
+    group_id, model, m, observed_names = args
+    # Use efficient copy method instead of deepcopy
+    model_copy = model.copy()
+    samples, _ = model_copy.sample_predictive(
+        group_id=0,  # Independent models have single group
+        num_samples=m,
+        observed_dishes=observed_names
+    )
+    return sum(1 for sample in samples if sample not in observed_names)
+
+
+def _predict_iteration_dependent(args):
+    """Helper function for parallel dependent prediction."""
+    model, m, num_groups, all_observed_names, observed_names_per_group = args
+    # Use efficient copy method instead of deepcopy
+    model_copy = model.copy()
+    
+    # Generate predictions for all groups
+    predictions_per_group = {}
+    for group_id in range(num_groups):
+        samples, _ = model_copy.sample_predictive(
+            group_id=group_id,
+            num_samples=m,
+            observed_dishes=all_observed_names
+        )
+        predictions_per_group[group_id] = samples
+    
+    # Analyze predictions for each group
+    iteration_results = {}
+    for group_id in range(num_groups):
+        samples = predictions_per_group[group_id]
+        observed_in_group = observed_names_per_group[group_id]
+        
+        # Count different types of new species
+        L_0_0 = 0  # New to all groups
+        L_0 = 0    # New to this group
+        L_from_other = {other: 0 for other in range(num_groups) if other != group_id}
+        
+        for sample in samples:
+            if sample not in observed_in_group:
+                L_0 += 1
+                
+                # Check if it's new to all groups
+                is_new_to_all = True
+                for other_group in range(num_groups):
+                    if other_group != group_id:
+                        if sample in observed_names_per_group[other_group]:
+                            is_new_to_all = False
+                            L_from_other[other_group] += 1
+                            break
+                
+                if is_new_to_all:
+                    L_0_0 += 1
+        
+        iteration_results[group_id] = {
+            'L_0_0': L_0_0,
+            'L_0': L_0,
+            'L_from_other': L_from_other
+        }
+    
+    return iteration_results
+
+
+def predict_independent(
     models: List[HierarchicalPitmanYorProcess],
     fit_data_dict: Dict[int, List[Tuple[str, int]]],
     metadata: Dict[str, Any],
     m_values: List[int],
     num_iterations: int = 1000,
+    num_threads: int = 1,
     verbose: bool = True
 ) -> Dict[str, Any]:
     """
     Generate predictions using independent models.
     
     Each state is predicted independently without borrowing strength.
+    Uses multithreading to accelerate sampling iterations.
     
     Args:
         models: List of fitted independent HPYP models
@@ -30,6 +97,7 @@ def predict_new_species_independent(
         metadata: Metadata dictionary
         m_values: List of prediction sizes to evaluate
         num_iterations: Number of prediction iterations
+        num_threads: Number of threads for parallel sampling
         verbose: Whether to show progress
         
     Returns:
@@ -37,7 +105,7 @@ def predict_new_species_independent(
     """
     if verbose:
         print("\n" + "="*60)
-        print("INDEPENDENT PREDICTION")
+        print(f"INDEPENDENT PREDICTION (threads={num_threads})")
         print("="*60)
     
     num_groups = len(models)
@@ -60,23 +128,25 @@ def predict_new_species_independent(
         observed_names = observed_names_per_group[group_id]
         
         # Iterate over prediction sizes
-        for m in tqdm(m_values, desc=f"Group {group_id} prediction", disable=not verbose):
-            # Run multiple prediction iterations
-            for iteration in range(num_iterations):
-                # Copy model state for this iteration
-                model_copy = copy.deepcopy(model)
-                
-                # Generate m new samples
-                # Note: model has group_id=0 since it's independent
-                samples, _ = model_copy.sample_predictive(
-                    group_id=0,  # Independent models have single group
-                    num_samples=m,
-                    observed_dishes=observed_names
-                )
-                
-                # Count new species (not in training data)
-                L_0 = sum(1 for sample in samples if sample not in observed_names)
-                results[group_id][m].append(L_0)
+        for m in tqdm(m_values, desc=f"Group {group_id}", disable=not verbose):
+            # Prepare tasks for parallel execution
+            tasks = [(group_id, model, m, observed_names) for _ in range(num_iterations)]
+            
+            if num_threads > 1:
+                # Parallel execution with progress tracking
+                # Use ProcessPoolExecutor for true parallelism (bypasses GIL)
+                L_0_values = [None] * num_iterations
+                with ProcessPoolExecutor(max_workers=num_threads) as executor:
+                    future_to_idx = {executor.submit(_predict_iteration_independent, task): i 
+                                    for i, task in enumerate(tasks)}
+                    for future in as_completed(future_to_idx):
+                        idx = future_to_idx[future]
+                        L_0_values[idx] = future.result()
+            else:
+                # Sequential execution
+                L_0_values = [_predict_iteration_independent(task) for task in tasks]
+            
+            results[group_id][m].extend(L_0_values)
     
     if verbose:
         print("\n✓ Independent predictions complete!")
@@ -84,12 +154,13 @@ def predict_new_species_independent(
     return results
 
 
-def predict_new_species_dependent(
+def predict_dependent(
     model: HierarchicalPitmanYorProcess,
     fit_data_dict: Dict[int, List[Tuple[str, int]]],
     metadata: Dict[str, Any],
     m_values: List[int],
     num_iterations: int = 1000,
+    num_threads: int = 1,
     verbose: bool = True
 ) -> Dict[str, Any]:
     """
@@ -100,6 +171,7 @@ def predict_new_species_dependent(
     - L^(0,0): New to all groups
     - L^(i,j): Seen in group j but new to group i
     - L^0: Total new to group i
+    Uses multithreading to accelerate sampling iterations.
     
     Args:
         model: Fitted dependent HPYP model
@@ -107,6 +179,7 @@ def predict_new_species_dependent(
         metadata: Metadata dictionary
         m_values: List of prediction sizes to evaluate
         num_iterations: Number of prediction iterations
+        num_threads: Number of threads for parallel sampling
         verbose: Whether to show progress
         
     Returns:
@@ -114,7 +187,7 @@ def predict_new_species_dependent(
     """
     if verbose:
         print("\n" + "="*60)
-        print("DEPENDENT PREDICTION")
+        print(f"DEPENDENT PREDICTION (threads={num_threads})")
         print("="*60)
     
     num_groups = metadata['num_groups']
@@ -145,51 +218,34 @@ def predict_new_species_dependent(
         print(f"\nRunning {num_iterations} iterations for each m value...")
     
     for m in tqdm(m_values, desc="Prediction", disable=not verbose):
-        for iteration in range(num_iterations):
-            # Copy model state for this iteration
-            model_copy = copy.deepcopy(model)
-            
-            # Generate predictions for all groups
-            predictions_per_group = {}
+        # Prepare tasks for parallel execution
+        tasks = [(model, m, num_groups, all_observed_names, observed_names_per_group) 
+                 for _ in range(num_iterations)]
+        
+        if num_threads > 1:
+            # Parallel execution with progress tracking
+            # Use ProcessPoolExecutor for true parallelism (bypasses GIL)
+            # ThreadPoolExecutor doesn't help with CPU-bound tasks
+            iteration_results_list = [None] * num_iterations
+            with ProcessPoolExecutor(max_workers=num_threads) as executor:
+                future_to_idx = {executor.submit(_predict_iteration_dependent, task): i 
+                                for i, task in enumerate(tasks)}
+                for future in as_completed(future_to_idx):
+                    idx = future_to_idx[future]
+                    iteration_results_list[idx] = future.result()
+        else:
+            # Sequential execution
+            iteration_results_list = [_predict_iteration_dependent(task) for task in tasks]
+        
+        # Combine results
+        for iteration_results in iteration_results_list:
             for group_id in range(num_groups):
-                samples, _ = model_copy.sample_predictive(
-                    group_id=group_id,
-                    num_samples=m,
-                    observed_dishes=all_observed_names
-                )
-                predictions_per_group[group_id] = samples
-            
-            # Analyze predictions for each group
-            for group_id in range(num_groups):
-                samples = predictions_per_group[group_id]
-                observed_in_group = observed_names_per_group[group_id]
-                
-                # Count different types of new species
-                L_0_0 = 0  # New to all groups
-                L_0 = 0    # New to this group
-                L_from_other = {other: 0 for other in range(num_groups) if other != group_id}
-                
-                for sample in samples:
-                    if sample not in observed_in_group:
-                        L_0 += 1
-                        
-                        # Check if it's new to all groups
-                        is_new_to_all = True
-                        for other_group in range(num_groups):
-                            if other_group != group_id:
-                                if sample in observed_names_per_group[other_group]:
-                                    is_new_to_all = False
-                                    L_from_other[other_group] += 1
-                                    break
-                        
-                        if is_new_to_all:
-                            L_0_0 += 1
-                
-                # Store results
-                results[group_id][m]['L_0_0'].append(L_0_0)
-                results[group_id][m]['L_0'].append(L_0)
-                for other in L_from_other:
-                    results[group_id][m]['L_from_other'][other].append(L_from_other[other])
+                results[group_id][m]['L_0_0'].append(iteration_results[group_id]['L_0_0'])
+                results[group_id][m]['L_0'].append(iteration_results[group_id]['L_0'])
+                for other in iteration_results[group_id]['L_from_other']:
+                    results[group_id][m]['L_from_other'][other].append(
+                        iteration_results[group_id]['L_from_other'][other]
+                    )
     
     if verbose:
         print("\n✓ Dependent predictions complete!")

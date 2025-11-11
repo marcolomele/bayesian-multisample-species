@@ -5,8 +5,10 @@ Handles both independent and dependent model configurations.
 
 import numpy as np
 from typing import Dict, List, Tuple, Any
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from tqdm import tqdm
 from pitmanyor import HierarchicalPitmanYorProcess
-from data_utils import expand_customers, expand_observations  # expand_observations is legacy alias
+from data_utils import expand_customers
 
 
 def fit_independent_models(
@@ -18,6 +20,7 @@ def fit_independent_models(
     Fit independent HPYP models (one per group, no sharing).
     
     Each state is modeled independently with its own parameters.
+    Uses multithreading to fit models in parallel.
     
     Args:
         data_dict: {group_id: [(name, count), ...]}
@@ -26,26 +29,35 @@ def fit_independent_models(
             - num_fit_iterations: Number of Gibbs iterations
             - burn_in: Number of burn-in iterations
             - d_0, theta_0, d_j, theta_j: Initial hyperparameters
+            - num_threads: Number of threads for parallel fitting
             
     Returns:
         List of fitted HPYP models (one per group)
     """
+    num_threads = config.get('num_threads', 1)
+    num_iterations = config.get('num_fit_iterations', 1000)
     print("\n" + "="*60)
-    print("FITTING INDEPENDENT MODELS")
+    print(f"FITTING INDEPENDENT MODELS (threads={num_threads})")
     print("="*60)
     
     num_groups = metadata['num_groups']
-    models = []
     
-    for group_id in range(num_groups):
+    # Shared progress bar for parallel execution
+    progress_bar = None
+    if num_threads > 1:
+        total_iterations = num_groups * num_iterations
+        progress_bar = tqdm(total=total_iterations, desc="Gibbs sampling", unit="iter")
+    
+    def fit_single_model(group_id):
+        """Fit a single independent model."""
         # Skip if this group has no data
         if group_id not in data_dict:
             print(f"\nSkipping group {group_id} ({metadata['group_to_state'][group_id]}) - no data")
-            models.append(None)
-            continue
+            return None
             
         state = metadata['group_to_state'][group_id]
-        print(f"\nFitting model for group {group_id} ({state})...")
+        if num_threads == 1:
+            print(f"\nFitting model for group {group_id} ({state})...")
         
         # Create independent model (num_groups=1 means no sharing)
         model = HierarchicalPitmanYorProcess(
@@ -60,21 +72,53 @@ def fit_independent_models(
         # Expand customers: convert (dish, count) to list of dishes
         group_data = {0: expand_customers({group_id: data_dict[group_id]})[group_id]}
         
-        # Fit the model
+        # Define callback for parallel progress updates
+        def iter_callback():
+            if progress_bar is not None:
+                progress_bar.update(1)
+        
+        # Fit the model with or without callback
         posterior_samples = model.fit_from_data(
             group_data,
-            num_iterations=config.get('num_fit_iterations', 1000),
+            num_iterations=num_iterations,
             burn_in=config.get('burn_in', 500),
             update_params=config.get('update_params', True),
-            verbose=config.get('verbose', True)
+            verbose=(num_threads == 1 and config.get('verbose', True)),
+            iteration_callback=iter_callback if num_threads > 1 else None
         )
         
         # Store posterior samples in the model for later use
         model.posterior_samples = posterior_samples
         
-        models.append(model)
+        return (group_id, state, model)
+    
+    # Fit models in parallel or sequentially
+    if num_threads > 1:
+        # Parallel execution with real-time progress bar
+        models = [None] * num_groups
         
-        print(f"✓ Completed fitting for group {group_id} ({state})")
+        with ThreadPoolExecutor(max_workers=num_threads) as executor:
+            future_to_group = {executor.submit(fit_single_model, gid): gid 
+                              for gid in range(num_groups)}
+            
+            for future in as_completed(future_to_group):
+                result = future.result()
+                if result:
+                    group_id, state, model = result
+                    models[group_id] = model
+                    print(f"✓ Completed {state}")
+        
+        if progress_bar:
+            progress_bar.close()
+    else:
+        # Sequential execution (shows individual progress bars from fit_from_data)
+        models = [None] * num_groups
+        for gid in range(num_groups):
+            result = fit_single_model(gid)
+            if result:
+                group_id, state, model = result
+                models[group_id] = model
+                print(f"✓ Completed fitting for group {group_id} ({state})")
     
     print("\n✓ All independent models fitted successfully!")
     return models

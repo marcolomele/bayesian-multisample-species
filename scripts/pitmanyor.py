@@ -4,6 +4,11 @@ from typing import Dict, List, Tuple, Optional, Any
 import random
 
 
+def _defaultdict_int_factory():
+    """Factory function for creating nested defaultdict(int). Picklable."""
+    return defaultdict(int)
+
+
 class HierarchicalPitmanYorProcess:
     """
     Hierarchical Pitman-Yor Process (HPYP) implementation.
@@ -72,7 +77,7 @@ class HierarchicalPitmanYorProcess:
         
         # Tables at group level (restaurants j = 1, ..., J)
         self.group_tables = defaultdict(dict)  # group_id -> {table_id -> base_table_id}
-        self.group_table_counts = defaultdict(lambda: defaultdict(int))  # group_id -> {table_id -> count}
+        self.group_table_counts = defaultdict(_defaultdict_int_factory)  # group_id -> {table_id -> count}
         self.group_num_tables = defaultdict(int)  # group_id -> number of tables
         
         # Customer assignments
@@ -276,7 +281,7 @@ class HierarchicalPitmanYorProcess:
         self.base_num_tables = 0
         
         self.group_tables = defaultdict(dict)
-        self.group_table_counts = defaultdict(lambda: defaultdict(int))
+        self.group_table_counts = defaultdict(_defaultdict_int_factory)
         self.group_num_tables = defaultdict(int)
         
         self.group_customers = defaultdict(list)
@@ -292,7 +297,8 @@ class HierarchicalPitmanYorProcess:
         num_iterations: int = 1000,
         burn_in: int = 500,
         update_params: bool = True,
-        verbose: bool = True
+        verbose: bool = True,
+        iteration_callback: Optional[callable] = None
     ) -> Dict[str, List]:
         """
         Fit the HPYP from observed data using Gibbs sampling.
@@ -303,6 +309,7 @@ class HierarchicalPitmanYorProcess:
             burn_in: Number of burn-in iterations to discard
             update_params: Whether to update hyperparameters via M-H
             verbose: Whether to print progress
+            iteration_callback: Optional callback function called after each iteration
             
         Returns:
             Dictionary with posterior samples after burn-in
@@ -384,6 +391,10 @@ class HierarchicalPitmanYorProcess:
                     posterior_samples['num_group_tables'][group_id].append(
                         self.group_num_tables[group_id]
                     )
+            
+            # Call callback after each iteration if provided
+            if iteration_callback is not None:
+                iteration_callback()
         
         if verbose:
             print(f"\nFitting complete. Posterior samples: {len(posterior_samples['theta_0'])}")
@@ -642,6 +653,47 @@ class HierarchicalPitmanYorProcess:
                 'd_j': self.d_j
             }
         }
+    
+    def copy(self) -> 'HierarchicalPitmanYorProcess':
+        """
+        Create a deep copy of the model.
+        More efficient than copy.deepcopy() for nested defaultdicts.
+        Optimized for speed by avoiding unnecessary conversions.
+        """
+        new_model = HierarchicalPitmanYorProcess(
+            d_0=self.d_0,
+            theta_0=self.theta_0,
+            d_j=self.d_j,
+            theta_j=self.theta_j,
+            base_measure=self.base_measure,
+            num_groups=self.num_groups
+        )
+        
+        # Copy base level - use dict() constructor which is faster than dict() for defaultdict
+        new_model.base_tables = dict(self.base_tables)
+        new_model.base_table_counts = defaultdict(int, self.base_table_counts)
+        new_model.base_num_tables = self.base_num_tables
+        
+        # Copy group level - avoid double conversion where possible
+        new_model.group_tables = {k: dict(v) for k, v in self.group_tables.items()}
+        new_model.group_table_counts = defaultdict(_defaultdict_int_factory)
+        for group_id, counts in self.group_table_counts.items():
+            # Direct assignment is faster than dict(counts) for defaultdict
+            new_model.group_table_counts[group_id] = defaultdict(int, counts)
+        new_model.group_num_tables = defaultdict(int, self.group_num_tables)
+        
+        # Copy customers - use list() for shallow copy (sufficient for tuples)
+        new_model.group_customers = defaultdict(list, {k: list(v) for k, v in self.group_customers.items()})
+        
+        # Copy dish tracking
+        new_model.dish_counts = defaultdict(int, self.dish_counts)
+        new_model.dish_to_base_table = dict(self.dish_to_base_table)
+        
+        # Copy counters
+        new_model._next_table_id = self._next_table_id
+        new_model._next_dish_id = self._next_dish_id
+        
+        return new_model
     
     def __repr__(self) -> str:
         """
