@@ -1,0 +1,11 @@
+m,state,independent_mean,dependent_mean,mean_difference,independent_hpd_width,dependent_hpd_width,width_reduction_pct
+200,sci.space,37.37,56.84,19.47,23.0,26.0,-13.0%
+200,soc.religion.christian,31.13,53.52,22.39,21.0,25.0,-19.0%
+600,sci.space,108.75,167.96,59.21,42.0,47.0,-11.9%
+600,soc.religion.christian,89.97,159.88,69.91,39.0,46.0,-17.9%
+1000,sci.space,176.51,275.84,99.33,55.0,63.0,-14.5%
+1000,soc.religion.christian,145.97,265.52,119.55,51.0,62.0,-21.6%
+1400,sci.space,241.28,381.34,140.06,70.0,78.0,-11.4%
+1400,soc.religion.christian,199.04,370.58,171.54,65.0,78.0,-20.0%
+2000,sci.space,335.19,534.32,199.13,89.0,100.0,-12.4%
+2000,soc.religion.christian,274.49,528.11,253.62,81.0,98.0,-21.0%

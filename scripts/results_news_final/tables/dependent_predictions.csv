@@ -1,0 +1,11 @@
+m,state,L_0_0,L_from_soc.religion.christian,L_0,HPD,L_from_sci.space
+200,sci.space,38.51,18.33,56.84,"(44, 70)",
+200,soc.religion.christian,36.94,,53.52,"(41, 66)",16.58
+600,sci.space,113.94,54.02,167.96,"(145, 192)",
+600,soc.religion.christian,106.26,,159.88,"(137, 183)",53.63
+1000,sci.space,186.84,89.00,275.84,"(245, 308)",
+1000,soc.religion.christian,170.12,,265.52,"(235, 297)",95.40
+1400,sci.space,258.18,123.17,381.34,"(343, 421)",
+1400,soc.religion.christian,229.93,,370.58,"(332, 410)",140.65
+2000,sci.space,361.72,172.60,534.32,"(485, 585)",
+2000,soc.religion.christian,313.20,,528.11,"(480, 578)",214.91

@@ -3,7 +3,10 @@
   "restaurant_col": "category",
   "dish_col": "word",
   "count_col": "count",
-  "restaurants": ["sci.space", "soc.religion.christian"],
+  "restaurants": [
+    "sci.space",
+    "soc.religion.christian"
+  ],
   "max_customers_per_restaurant": 2000,
   "train_ratio": 1.0,
   "seed": 42,
@@ -11,7 +14,13 @@
   "burn_in": 5000,
   "num_predict_iterations": 10000,
   "num_threads": 12,
-  "m_values": [200, 600, 1000, 1400, 2000],
+  "m_values": [
+    200,
+    600,
+    1000,
+    1400,
+    2000
+  ],
   "d_0": 0.5,
   "theta_0": 1000.0,
   "d_j": 0.5,
@@ -20,4 +29,3 @@
   "verbose": true,
   "output_dir": "./results_news_final"
 }
-

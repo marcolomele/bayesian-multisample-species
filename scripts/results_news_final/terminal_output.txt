@@ -1,0 +1,95 @@
+(.env) marcolomele@Marcos-MacBook-Pro scripts % python experiment.py --config config_news.json --resume && python experiment.py --config config_wilderness.json  
+
+============================================================
+HPYP EXPERIMENT
+============================================================
+
+STEP 1: Load and prepare data
+Loading data from ../data/twenty+newsgroups/newsgroup_adj_agg.csv...
+Filtered to ['sci.space', 'soc.religion.christian']: 1,754 records
+Capping: max 2,000 per restaurant
+  sci.space: sampling 2,000 from 5,000
+  soc.religion.christian: sampling 2,000 from 5,000
+
+Loaded 1252 unique (restaurant, dish) pairs
+Restaurants: ['sci.space', 'soc.religion.christian']
+Total customers: 4,000
+
+Splitting: train_ratio=1.0
+Fit: 1252 pairs, 4,000 customers
+Test: 0 pairs, 0 customers
+
+Data summary per restaurant:
+  Restaurant 0 (sci.space): 2,000 customers, 640 dishes
+  Restaurant 1 (soc.religion.christian): 2,000 customers, 612 dishes
+Total unique dishes: 1,040
+Shared dishes (across all restaurants): 212
+
+STEP 2: Fit models
+  [Resume] Loading from checkpoint...
+
+STEP 3: Generate predictions
+
+  Running independent predictions...
+
+============================================================
+INDEPENDENT PREDICTION (threads=12)
+============================================================
+
+Predicting for group 0 (sci.space)...
+Group 0: 100%|█████████████████████████████████████████████████████████████████████████████| 5/5 [17:55<00:00, 215.09s/it]
+
+Predicting for group 1 (soc.religion.christian)...
+Group 1: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 5/5 [15:00<00:00, 180.02s/it]
+
+✓ Independent predictions complete!
+✓ Checkpoint: predictions
+  ✓ Independent predictions saved to checkpoint
+
+  Running dependent predictions...
+
+============================================================
+DEPENDENT PREDICTION (threads=12)
+============================================================
+
+Running 10000 iterations for each m value...
+Prediction: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 5/5 [42:47<00:00, 513.59s/it]
+
+✓ Dependent predictions complete!
+✓ Checkpoint: predictions
+  ✓ Dependent predictions saved to checkpoint
+
+STEP 4: Compute statistics
+✓ Checkpoint: statistics
+
+STEP 5: Generate output
+✓ Independent predictions table saved to ./results_news_final/tables/independent_predictions.csv
+✓ Dependent predictions table saved to ./results_news_final/tables/dependent_predictions.csv
+✓ Parameter estimates table saved to ./results_news_final/tables/parameter_estimates.csv
+✓ Comparison table saved to ./results_news_final/tables/model_comparison.csv
+✓ Linearity check saved to ./results_news_final/diagnostics/linearity_independent.txt
+✓ Linearity check saved to ./results_news_final/diagnostics/linearity_dependent.txt
+
+============================================================
+RESULTS SUMMARY (m = 1000)
+============================================================
+
+Independent Model:
+----------------------------------------
+  sci.space: L̂^0 = 176.51, HPD = (150, 205)
+  soc.religion.christian: L̂^0 = 145.97, HPD = (121, 172)
+
+Dependent Model (Borrowing Strength):
+----------------------------------------
+  sci.space: L̂^0 = 275.84, HPD = (245, 308)
+  soc.religion.christian: L̂^0 = 265.52, HPD = (235, 297)
+
+Borrowing Strength Effect:
+----------------------------------------
+  sci.space: HPD width reduction = -14.5%
+  soc.religion.christian: HPD width reduction = -21.6%
+============================================================
+
+✓ Complete! Results in ./results_news_final
+
+✓ Success!
