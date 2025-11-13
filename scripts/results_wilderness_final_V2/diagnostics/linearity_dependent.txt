@@ -1,0 +1,39 @@
+============================================================
+LINEARITY CHECK (Theorem 1 Verification)
+============================================================
+
+Testing if L_m is linear in m:
+  L_m ≈ slope * m + intercept
+
+
+Group 0 (1):
+  Slope:       0.0201
+  Intercept:   0.8768
+  R²:          0.999432
+  p-value:     5.75e-06
+  Std Error:   0.0003
+  ✓ Excellent linear fit (R² > 0.99)
+
+Group 1 (2):
+  Slope:       0.0134
+  Intercept:   0.9725
+  R²:          0.998571
+  p-value:     2.29e-05
+  Std Error:   0.0003
+  ✓ Excellent linear fit (R² > 0.99)
+
+Group 2 (3):
+  Slope:       0.0132
+  Intercept:   -0.5130
+  R²:          0.999031
+  p-value:     1.28e-05
+  Std Error:   0.0002
+  ✓ Excellent linear fit (R² > 0.99)
+
+Group 3 (4):
+  Slope:       0.0353
+  Intercept:   -1.0582
+  R²:          0.999695
+  p-value:     2.26e-06
+  Std Error:   0.0004
+  ✓ Excellent linear fit (R² > 0.99)

@@ -1,0 +1,23 @@
+============================================================
+LINEARITY CHECK (Theorem 1 Verification)
+============================================================
+
+Testing if L_m is linear in m:
+  L_m ≈ slope * m + intercept
+
+
+Group 0 (sci.space):
+  Slope:       0.8540
+  Intercept:   6.2897
+  R²:          0.999987
+  p-value:     1.90e-08
+  Std Error:   0.0018
+  ✓ Excellent linear fit (R² > 0.99)
+
+Group 1 (soc.religion.christian):
+  Slope:       0.8556
+  Intercept:   3.5649
+  R²:          0.999997
+  p-value:     1.71e-09
+  Std Error:   0.0008
+  ✓ Excellent linear fit (R² > 0.99)

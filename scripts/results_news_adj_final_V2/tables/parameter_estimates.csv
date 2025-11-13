@@ -1,0 +1,4 @@
+model,state,theta_0,theta_j,d_0,d_j,num_base_tables,num_unique_dishes
+Independent,sci.space,1415.74 ± 84.12,1465.80 ± 88.87,0.0777 ± 0.0693,0.1205 ± 0.1111,80.0,80.0
+Independent,soc.religion.christian,1406.96 ± 87.81,1460.58 ± 80.54,0.0871 ± 0.0787,0.1929 ± 0.1465,83.0,83.0
+Dependent,ALL (shared),1324.20 ± 73.69,1435.60 ± 81.56,0.0390 ± 0.0454,0.0761 ± 0.0690,153.0,153.0
