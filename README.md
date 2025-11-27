@@ -15,10 +15,6 @@ This implementation demonstrates the "borrowing of strength" phenomenon in Bayes
 │   ├── twenty+newsgroups/         # Newsgroup word frequencies
 │   └── wilderness/                # Wilderness species data
 │
-├── data_raw/                      # Raw data files and preprocessing artifacts
-│   ├── namesbystate/
-│   ├── twenty+newsgroups/
-│   └── wilderness/
 │
 ├── scripts/                       # Core implementation and experiments
 │   ├── data_utils.py              # Data loading and preprocessing
